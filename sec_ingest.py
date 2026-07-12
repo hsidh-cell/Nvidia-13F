@@ -39,13 +39,19 @@ DESIGN NOTES
   and are written to `review_securities.json` for a human to classify.
 """
 
-import argparse, json, os, sys, time, urllib.request, urllib.error
+import argparse, gzip, json, os, sys, time, zlib, urllib.request, urllib.error
 import xml.etree.ElementTree as ET
 from datetime import date
 
-# --- identify yourself to SEC (edit this) -----------------------------------
-CONTACT = "13F Terminal ingest (admin@example.com)"
-UA = {"User-Agent": CONTACT, "Accept-Encoding": "gzip, deflate", "Host": None}
+# --- identify yourself to SEC (edit this if you like) -----------------------
+# SEC asks for a descriptive User-Agent that includes a contact. A bare email
+# works too; --contact overrides this at runtime.
+CONTACT = "13F-Terminal admin@example.com"
+UA_STRING = CONTACT   # mutable; set from --contact at runtime
+
+def ua_from_contact(c):
+    c = (c or "").strip()
+    return c if " " in c else f"13F-Terminal ({c})"   # ensure a name + contact
 
 EDGAR_SUBMISSIONS = "https://data.sec.gov/submissions/CIK{cik10}.json"
 EDGAR_DIR_INDEX   = "https://www.sec.gov/Archives/edgar/data/{cik}/{acc}/index.json"
@@ -78,23 +84,48 @@ NS_INFO = "{http://www.sec.gov/edgar/document/thirteenf/informationtable}"
 
 
 def get(url, binary=False, retries=4):
-    """Fetch a URL with SEC-compliant headers and simple retry."""
-    headers = {k: v for k, v in UA.items() if v is not None}
+    """Fetch a URL with SEC-compliant headers, gzip handling, and retry."""
+    headers = {"User-Agent": UA_STRING, "Accept": "*/*",
+               "Accept-Encoding": "gzip, deflate"}
+    last = None
     for attempt in range(retries):
         try:
             req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, timeout=30) as r:
                 raw = r.read()
+                enc = (r.headers.get("Content-Encoding") or "").lower()
+            # SEC commonly gzip-compresses responses; decompress before decoding.
+            if enc == "gzip" or raw[:2] == b"\x1f\x8b":
+                raw = gzip.decompress(raw)
+            elif enc == "deflate":
+                try: raw = zlib.decompress(raw)
+                except zlib.error: raw = zlib.decompress(raw, -zlib.MAX_WBITS)
             time.sleep(RATE_SLEEP)
             return raw if binary else raw.decode("utf-8", "replace")
         except urllib.error.HTTPError as e:
+            last = e
             if e.code in (403, 429, 500, 502, 503) and attempt < retries - 1:
-                time.sleep(1.5 * (attempt + 1)); continue
+                time.sleep(2.0 * (attempt + 1)); continue
             raise
-        except urllib.error.URLError:
+        except urllib.error.URLError as e:
+            last = e
             if attempt < retries - 1:
-                time.sleep(1.5 * (attempt + 1)); continue
+                time.sleep(2.0 * (attempt + 1)); continue
             raise
+    if last: raise last
+
+
+def getj(url):
+    """GET and parse JSON, with a human-readable error if SEC returns non-JSON."""
+    txt = get(url)
+    try:
+        return json.loads(txt)
+    except json.JSONDecodeError:
+        snippet = txt[:180].replace("\n", " ")
+        raise SystemExit(
+            f"\nERROR: expected JSON from {url}\n  got instead: {snippet!r}\n"
+            f"  If that looks like an HTML/blocked page, SEC may be rate-limiting — "
+            f"wait a minute and re-run, and confirm --contact is a real email.\n")
 
 
 def calendar_quarter(report_date):
@@ -104,7 +135,7 @@ def calendar_quarter(report_date):
 
 def list_13f_filings(cik10):
     """Return [(accession, form, reportDate, filingDate)] newest-first."""
-    data = json.loads(get(EDGAR_SUBMISSIONS.format(cik10=cik10)))
+    data = getj(EDGAR_SUBMISSIONS.format(cik10=cik10))
     rec = data["filings"]["recent"]
     rows = []
     for form, acc, rpt, fdt in zip(rec["form"], rec["accessionNumber"],
@@ -113,7 +144,7 @@ def list_13f_filings(cik10):
             rows.append((acc, form, rpt, fdt))
     # older filings can spill into separate files:
     for extra in data["filings"].get("files", []):
-        more = json.loads(get("https://data.sec.gov/submissions/" + extra["name"]))
+        more = getj("https://data.sec.gov/submissions/" + extra["name"])
         for form, acc, rpt, fdt in zip(more["form"], more["accessionNumber"],
                                        more["reportDate"], more["filingDate"]):
             if form in ("13F-HR", "13F-HR/A"):
@@ -122,7 +153,7 @@ def list_13f_filings(cik10):
 
 
 def find_infotable(cik, acc_nodash):
-    idx = json.loads(get(EDGAR_DIR_INDEX.format(cik=cik, acc=acc_nodash)))
+    idx = getj(EDGAR_DIR_INDEX.format(cik=cik, acc=acc_nodash))
     names = [it["name"] for it in idx["directory"]["item"]]
     # information table is an .xml that is not the primary_doc
     cands = [n for n in names if n.lower().endswith(".xml") and "primary_doc" not in n.lower()]
@@ -177,11 +208,11 @@ def parse_summary(primary_xml):
 
 
 def build_dataset(cik10, contact=None):
-    if contact:
-        UA["User-Agent"] = contact
+    global UA_STRING
+    UA_STRING = ua_from_contact(contact or CONTACT)
     cik = str(int(cik10))
     filings_raw = list_13f_filings(cik10)
-    manager = json.loads(get(EDGAR_SUBMISSIONS.format(cik10=cik10)))["name"]
+    manager = getj(EDGAR_SUBMISSIONS.format(cik10=cik10))["name"]
 
     by_period = {}      # reportDate -> filing dict (amendments supersede/merge)
     review = {}
@@ -291,6 +322,8 @@ def main():
                     help="exit 10 if EDGAR has a period newer than the cached --out; do not rewrite")
     args = ap.parse_args()
     cik10 = args.cik.zfill(10)
+    global UA_STRING
+    UA_STRING = ua_from_contact(args.contact or CONTACT)
 
     if args.check:
         latest_edgar = max((r[2] for r in list_13f_filings(cik10)), default=None)
