@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NVIDIA 13F Portfolio Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+<style>
+:root{
+  --bg:#0A0D11; --panel:#10151B; --panel2:#141B23; --panel3:#1A222C;
+  --line:#222C37; --line2:#2C3946; --grid:#1A222B;
+  --text:#E8EEF4; --muted:#93A2B2; --faint:#61707E;
+  --green:#76B900; --green-d:#5C9200; --greenbg:rgba(118,185,0,.12);
+  --pos:#3FB950; --neg:#F26D6D; --amber:#E3A008; --blue:#4C8DFF; --purple:#A371F7; --cyan:#37C2C4;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pos{color:var(--pos)} .neg{color:var(--neg)} .amber{color:var(--amber)} .faint{color:var(--faint)} .muted{color:var(--muted)}
+a{color:var(--green);text-decoration:none} a:hover{text-decoration:underline}
+::-webkit-scrollbar{width:10px;height:10px} ::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:#2A3642;border-radius:6px;border:2px solid var(--bg)}
+::-webkit-scrollbar-thumb:hover{background:#374654}
+
+/* ---- Top bar ---- */
+.topbar{position:sticky;top:0;z-index:40;background:linear-gradient(180deg,#0C1116,#0A0D11);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:18px;padding:0 22px;height:58px}
+.brand{display:flex;align-items:center;gap:11px;flex-shrink:0}
+.brand .mark{width:11px;height:22px;background:var(--green);border-radius:2px;box-shadow:0 0 14px rgba(118,185,0,.55)}
+.brand .t1{font-weight:700;font-size:15px;letter-spacing:.02em}
+.brand .t2{font-size:10px;color:var(--faint);letter-spacing:.28em;text-transform:uppercase;margin-top:1px}
+.ticker-strip{display:flex;gap:22px;overflow:hidden;flex:1;mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent)}
+.ticker-track{display:flex;gap:26px;white-space:nowrap;animation:scroll 44s linear infinite}
+.ticker-track:hover{animation-play-state:paused}
+@keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.tk{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px}
+.tk b{font-weight:600;color:var(--text)} .tk .v{color:var(--muted)}
+.livedot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.asof{font-size:11px;color:var(--faint);font-family:var(--mono);display:flex;align-items:center;gap:7px;flex-shrink:0}
+
+/* ---- Tabs ---- */
+.tabs{position:sticky;top:58px;z-index:39;background:var(--bg);border-bottom:1px solid var(--line);display:flex;gap:2px;padding:0 16px;overflow-x:auto}
+.tab{padding:13px 16px 11px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--green);border-bottom-color:var(--green)}
+.wrap{max-width:1360px;margin:0 auto;padding:22px}
+.view{display:none;animation:fade .3s ease} .view.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ---- Panels ---- */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.p-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
+.p-title{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.p-body{padding:16px}
+.eyebrow{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--faint);font-weight:600}
+.grid{display:grid;gap:14px}
+
+/* ---- KPI ---- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:15px 16px;position:relative;overflow:hidden}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--green);opacity:.75}
+.kpi.alt::before{background:var(--blue)} .kpi.warn::before{background:var(--amber)} .kpi.rose::before{background:var(--neg)}
+.kpi .k{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);font-weight:600}
+.kpi .v{font-family:var(--mono);font-size:25px;font-weight:600;margin-top:8px;letter-spacing:-.02em;line-height:1}
+.kpi .s{font-size:12px;color:var(--muted);margin-top:7px;font-family:var(--mono)}
+
+.hero{background:radial-gradient(1200px 300px at 15% -20%,rgba(118,185,0,.10),transparent),var(--panel);
+  border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+.hero-top{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;margin-bottom:6px}
+.hero h1{font-size:19px;font-weight:700;letter-spacing:-.01em}
+.hero p.sub{color:var(--muted);font-size:13px;margin-top:4px;max-width:640px}
+.play{display:flex;align-items:center;gap:10px}
+.btn{background:var(--panel3);border:1px solid var(--line2);color:var(--text);border-radius:7px;padding:7px 12px;font-size:12.5px;
+  font-weight:500;cursor:pointer;font-family:var(--sans);display:inline-flex;align-items:center;gap:7px;transition:all .14s}
+.btn:hover{border-color:#3d4d5c;background:#1e2732}
+.btn.pri{background:var(--greenbg);border-color:rgba(118,185,0,.4);color:var(--green)}
+.btn.pri:hover{background:rgba(118,185,0,.2)}
+.btn.sm{padding:5px 10px;font-size:11.5px}
+.scrub{-webkit-appearance:none;appearance:none;height:4px;border-radius:3px;background:var(--line2);outline:none;flex:1;min-width:120px}
+.scrub::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--green);cursor:pointer;box-shadow:0 0 0 4px rgba(118,185,0,.18)}
+.scrub::-moz-range-thumb{width:15px;height:15px;border:none;border-radius:50%;background:var(--green);cursor:pointer}
+.qlabel{font-family:var(--mono);font-size:13px;font-weight:600;min-width:64px;text-align:center}
+
+.two{display:grid;grid-template-columns:2fr 1fr;gap:14px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:900px){.two,.three{grid-template-columns:1fr}}
+
+/* ---- charts ---- */
+.chart{width:100%}
+
+/* ---- Table ---- */
+.toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.search{position:relative;flex:1;min-width:180px}
+.search input{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 12px 9px 34px;color:var(--text);font-size:13px;font-family:var(--sans)}
+.search input:focus{outline:none;border-color:var(--green-d)}
+.search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--faint)}
+select.sel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 11px;color:var(--text);font-size:12.5px;font-family:var(--sans);cursor:pointer}
+select.sel:focus{outline:none;border-color:var(--green-d)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:6px 11px;border-radius:20px;font-size:12px;border:1px solid var(--line2);color:var(--muted);cursor:pointer;background:var(--panel);transition:all .13s}
+.chip:hover{color:var(--text)}
+.chip.on{background:var(--greenbg);border-color:rgba(118,185,0,.45);color:var(--green)}
+.tablewrap{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+thead th{background:var(--panel2);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);font-weight:600;
+  text-align:right;padding:11px 13px;cursor:pointer;user-select:none;white-space:nowrap;border-bottom:1px solid var(--line);position:sticky;top:0}
+thead th.l{text-align:left} thead th:hover{color:var(--muted)}
+thead th .ar{opacity:.4;font-size:9px}
+tbody td{padding:11px 13px;text-align:right;font-family:var(--mono);font-size:12.5px;border-bottom:1px solid rgba(34,44,55,.55);white-space:nowrap}
+tbody td.l{text-align:left;font-family:var(--sans)}
+tbody tr{transition:background .1s} tbody tr:hover{background:var(--panel2);cursor:pointer}
+tbody tr:last-child td{border-bottom:none}
+.tk-badge{display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:600;font-size:11px;
+  background:var(--panel3);border:1px solid var(--line2);border-radius:5px;padding:3px 7px;color:var(--text);min-width:44px}
+.coname{font-weight:500;font-size:13px} .cosub{font-size:11px;color:var(--faint)}
+.stat{display:inline-block;padding:2px 8px;border-radius:5px;font-size:10.5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;font-family:var(--sans)}
+.s-new{background:rgba(63,185,80,.14);color:var(--pos)} .s-add{background:rgba(76,141,255,.14);color:var(--blue)}
+.s-red{background:rgba(242,109,109,.13);color:var(--neg)} .s-hold{background:rgba(147,162,178,.12);color:var(--muted)}
+.s-exit{background:rgba(227,160,8,.14);color:var(--amber)}
+.tag-v{font-size:9px;letter-spacing:.05em;padding:2px 6px;border-radius:4px;font-weight:600;font-family:var(--sans)}
+.tag-v.ok{background:rgba(118,185,0,.13);color:var(--green)} .tag-v.re{background:rgba(147,162,178,.1);color:var(--faint)}
+
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);font-family:var(--mono)}
+.legend .li{display:flex;align-items:center;gap:7px} .legend .dot{width:9px;height:9px;border-radius:2px}
+
+/* ---- Compare ---- */
+.cmp-head{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.cmp-head .vs{color:var(--faint);font-family:var(--mono);font-size:13px}
+.movers{display:grid;grid-template-columns:1fr 1fr;gap:14px} @media(max-width:760px){.movers{grid-template-columns:1fr}}
+.moverrow{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(34,44,55,.5);font-family:var(--mono);font-size:12.5px}
+.moverrow:last-child{border:none}
+
+/* ---- Change log ---- */
+.qlog{border-left:2px solid var(--line2);margin-left:8px;padding-left:20px;position:relative}
+.qlog-item{position:relative;padding-bottom:26px}
+.qlog-item::before{content:"";position:absolute;left:-27px;top:4px;width:11px;height:11px;border-radius:50%;background:var(--panel);border:2px solid var(--green)}
+.qlog-item.re::before{border-color:var(--faint)}
+.qlog-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.qlog-q{font-family:var(--mono);font-weight:700;font-size:15px}
+.qlog-meta{font-size:11.5px;color:var(--faint);font-family:var(--mono)}
+.qlog-tv{margin-left:auto;font-family:var(--mono);font-size:13px;font-weight:600}
+.qlog-line{font-size:13px;color:var(--muted);padding:3px 0;display:flex;gap:9px;align-items:flex-start}
+.qlog-line .ic{margin-top:1px;flex-shrink:0}
+
+/* ---- Drawer ---- */
+.drawer-bg{position:fixed;inset:0;background:rgba(4,7,10,.66);backdrop-filter:blur(2px);z-index:60;opacity:0;pointer-events:none;transition:opacity .2s}
+.drawer-bg.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(760px,94vw);background:var(--bg);border-left:1px solid var(--line2);z-index:61;
+  transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);overflow-y:auto;box-shadow:-24px 0 60px rgba(0,0,0,.5)}
+.drawer.on{transform:none}
+.drawer-head{position:sticky;top:0;background:linear-gradient(180deg,#0C1116,#0A0D11);border-bottom:1px solid var(--line);padding:18px 22px;z-index:2;display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.x{background:none;border:1px solid var(--line2);color:var(--muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:16px;flex-shrink:0}
+.x:hover{color:var(--text);border-color:#3d4d5c}
+.dstat{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:hidden;margin:0 0 16px}
+.dstat .c{background:var(--panel);padding:12px 13px}
+.dstat .c .k{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:600}
+.dstat .c .v{font-family:var(--mono);font-size:16px;font-weight:600;margin-top:5px}
+.dstat .c .v.sm{font-size:13px}
+
+.footnote{margin-top:22px;padding:16px;border:1px solid var(--line);border-radius:10px;background:var(--panel);font-size:12px;color:var(--muted);line-height:1.65}
+.footnote b{color:var(--text)}
+.prov{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-family:var(--mono)}
+.dotk{width:8px;height:8px;border-radius:2px;display:inline-block}
+@media(max-width:640px){.kpi .v{font-size:21px}.wrap{padding:14px}.hero h1{font-size:17px}}
+.hint{font-size:11.5px;color:var(--faint);font-family:var(--mono)}
+.spark{height:40px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><div class="mark"></div><div><div class="t1">NVIDIA&nbsp;·&nbsp;13F&nbsp;TERMINAL</div><div class="t2">Institutional Holdings Intelligence</div></div></div>
+  <div class="ticker-strip"><div class="ticker-track" id="ticker"></div></div>
+  <div class="asof"><span class="livedot"></span><span id="asof"></span></div>
+</div>
+
+<div class="tabs" id="tabs">
+  <div class="tab active" data-v="overview">Executive Summary</div>
+  <div class="tab" data-v="holdings">Holdings</div>
+  <div class="tab" data-v="timeline">Historical Timeline</div>
+  <div class="tab" data-v="composition">Composition</div>
+  <div class="tab" data-v="compare">Quarter Compare</div>
+  <div class="tab" data-v="changelog">Change Log</div>
+</div>
+
+<div class="wrap">
+  <!-- OVERVIEW -->
+  <section class="view active" id="v-overview">
+    <div class="hero">
+      <div class="hero-top">
+        <div>
+          <div class="eyebrow">Portfolio Evolution · Q4 2023 → <span id="heroLast"></span></div>
+          <h1>NVIDIA's strategic-investment book, one filing at a time</h1>
+          <p class="sub">From five speculative AI moonshots worth $230M to a concentrated $18B book anchored by Intel, CoreWeave and Synopsys. Scrub the timeline to replay every reported quarter.</p>
+        </div>
+        <div class="play">
+          <button class="btn pri" id="playBtn">▶ Play</button>
+          <span class="qlabel" id="scrubQ"></span>
+        </div>
+      </div>
+      <input type="range" class="scrub" id="scrub" min="0" value="0">
+      <div class="chart" id="heroChart" style="height:230px;margin-top:6px"></div>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="two" style="margin-bottom:16px">
+      <div class="panel">
+        <div class="p-head"><span class="p-title">Top 5 Holdings</span><span class="hint" id="top5q"></span></div>
+        <div class="p-body"><div id="top5"></div></div>
+      </div>
+      <div class="panel">
+        <div class="p-head"><span class="p-title">Concentration</span></div>
+        <div class="p-body"><div class="chart" id="concChart" style="height:210px"></div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="p-head"><span class="p-title">Latest Filing — Change Summary</span><span class="hint" id="latestMeta"></span></div>
+      <div class="p-body"><div id="latestChanges"></div></div>
+    </div>
+  </section>
+
+  <!-- HOLDINGS -->
+  <section class="view" id="v-holdings">
+    <div class="toolbar">
+      <div class="search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="hSearch" placeholder="Search ticker, company, CUSIP, sector…">
+      </div>
+      <select class="sel" id="hQuarter"></select>
+      <select class="sel" id="hSector"><option value="">All sectors</option></select>
+      <button class="btn sm" id="expCsv">⤓ CSV</button>
+      <button class="btn sm" id="expCopy">⧉ Copy</button>
+    </div>
+    <div class="chips" id="hChips" style="margin-bottom:12px">
+      <div class="chip on" data-f="all">All</div>
+      <div class="chip" data-f="new">New</div>
+      <div class="chip" data-f="add">Increased</div>
+      <div class="chip" data-f="red">Reduced</div>
+      <div class="chip" data-f="hold">Unchanged</div>
+      <div class="chip" data-f="exit">Exited</div>
+    </div>
+    <div class="tablewrap"><table id="hTable"><thead></thead><tbody></tbody></table></div>
+    <div class="hint" style="margin-top:10px" id="hCount"></div>
+  </section>
+
+  <!-- TIMELINE -->
+  <section class="view" id="v-timeline">
+    <div class="panel" style="margin-bottom:14px">
+      <div class="p-head"><span class="p-title">Portfolio Metrics — Every Quarter</span>
+        <div class="chips" id="tlChips">
+          <div class="chip on" data-m="value">Portfolio Value</div>
+          <div class="chip" data-m="count">Holdings</div>
+          <div class="chip" data-m="avg">Avg Position</div>
+          <div class="chip" data-m="max">Largest Position</div>
+          <div class="chip" data-m="conc">Top-5 Concentration</div>
+        </div>
+      </div>
+      <div class="p-body"><div class="chart" id="tlChart" style="height:340px"></div></div>
+    </div>
+    <div class="panel">
+      <div class="p-head"><span class="p-title">Position Value by Quarter — Stacked</span></div>
+      <div class="p-body"><div class="chart" id="stackChart" style="height:360px"></div></div>
+    </div>
+  </section>
+
+  <!-- COMPOSITION -->
+  <section class="view" id="v-composition">
+    <div class="toolbar"><select class="sel" id="cQuarter"></select><span class="hint">Composition of the selected filing period</span></div>
+    <div class="two" style="margin-bottom:14px">
+      <div class="panel"><div class="p-head"><span class="p-title">Holdings Treemap</span></div><div class="p-body"><div class="chart" id="treeChart" style="height:360px"></div></div></div>
+      <div class="panel"><div class="p-head"><span class="p-title">Weight Distribution</span></div><div class="p-body"><div class="chart" id="pieChart" style="height:360px"></div></div></div>
+    </div>
+    <div class="three">
+      <div class="panel"><div class="p-head"><span class="p-title">Sector</span></div><div class="p-body"><div class="chart" id="secChart" style="height:250px"></div></div></div>
+      <div class="panel"><div class="p-head"><span class="p-title">Country</span></div><div class="p-body"><div class="chart" id="ctryChart" style="height:250px"></div></div></div>
+      <div class="panel"><div class="p-head"><span class="p-title">Industry</span></div><div class="p-body"><div class="chart" id="indChart" style="height:250px"></div></div></div>
+    </div>
+  </section>
+
+  <!-- COMPARE -->
+  <section class="view" id="v-compare">
+    <div class="cmp-head">
+      <select class="sel" id="cmpA"></select><span class="vs">vs</span><select class="sel" id="cmpB"></select>
+    </div>
+    <div class="kpis" id="cmpKpis"></div>
+    <div class="two">
+      <div class="panel"><div class="p-head"><span class="p-title">Largest Movers — Value Δ</span></div><div class="p-body"><div class="chart" id="moverChart" style="height:320px"></div></div></div>
+      <div class="panel"><div class="p-head"><span class="p-title">Position Changes</span></div><div class="p-body"><div id="cmpLists"></div></div></div>
+    </div>
+  </section>
+
+  <!-- CHANGELOG -->
+  <section class="view" id="v-changelog">
+    <div class="panel"><div class="p-head"><span class="p-title">Auto-Generated Filing Log</span><span class="hint">Newest first · derived from consecutive filings</span></div>
+      <div class="p-body"><div class="qlog" id="qlog"></div></div>
+    </div>
+  </section>
+
+  <div class="footnote">
+    <div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:10px">
+      <span class="prov"><span class="dotk" style="background:var(--green)"></span> <b>Filing-verified</b> — parsed line-by-line from the original 13F information table</span>
+      <span class="prov"><span class="dotk" style="background:var(--faint)"></span> <b>Reconstructed</b> — exact filed totals &amp; reported share counts with position values from public filing disclosures</span>
+    </div>
+    <b>Source of truth:</b> SEC EDGAR Form 13F-HR filings, NVIDIA Corp (CIK 0001045810). Values in whole US dollars.
+    Q1 2024 and Q2 2025 → Q1 2026 are verified directly from the filings and reconcile to the penny. Q4 2023 and Q2 2024 → Q1 2025 are reconstructed:
+    every quarter's holdings sum <b>exactly</b> to the total reported on that filing's summary page, and share counts match the filings; a small number of individual
+    position values in reconstructed quarters are derived from period-end pricing. Not investment advice.
+  </div>
+</div>
+
+<!-- Drawer -->
+<div class="drawer-bg" id="drawerBg"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div>
+      <div class="eyebrow" id="dEyebrow"></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:6px"><span class="tk-badge" id="dTicker" style="font-size:13px;padding:4px 9px"></span><span style="font-weight:700;font-size:17px" id="dName"></span></div>
+      <div class="hint" id="dSub" style="margin-top:5px"></div>
+    </div>
+    <button class="x" id="dClose">✕</button>
+  </div>
+  <div style="padding:20px 22px 40px">
+    <div class="dstat" id="dStats"></div>
+    <div class="panel" style="margin-bottom:14px"><div class="p-head"><span class="p-title">Shares &amp; Market Value</span></div><div class="p-body"><div class="chart" id="dChart1" style="height:230px"></div></div></div>
+    <div class="panel" style="margin-bottom:14px"><div class="p-head"><span class="p-title">Portfolio Weight</span></div><div class="p-body"><div class="chart" id="dChart2" style="height:150px"></div></div></div>
+    <div class="panel"><div class="p-head"><span class="p-title">Quarter-by-Quarter</span></div>
+      <div class="tablewrap" style="border:none;border-radius:0"><table id="dTable"><thead></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+</aside>
+
+<script id="dataset" type="application/json">{
+  "meta": {
+    "manager": "NVIDIA CORP",
+    "cik": "0001045810",
+    "generated": "2026-06-30",
+    "source": "SEC EDGAR Form 13F-HR filings (information tables). Five quarters verified line-by-line against the original filings; five earlier quarters reconstructed from public filing disclosures (exact filed totals + reported share counts + documented position values).",
+    "valueUnits": "US dollars (whole)",
+    "note": "Form 13F values are reported in whole dollars per the SEC rule effective Jan 2023."
+  },
+  "securities": {
+    "042068205": {"ticker": "ARM",  "name": "Arm Holdings plc",              "sector": "Semiconductors",        "industry": "Semiconductor Design (IP)",     "country": "United Kingdom"},
+    "M70700105": {"ticker": "NNOX", "name": "Nano-X Imaging Ltd",            "sector": "Healthcare",            "industry": "Medical Imaging Devices",       "country": "Israel"},
+    "75629V104": {"ticker": "RXRX", "name": "Recursion Pharmaceuticals",     "sector": "Healthcare",            "industry": "AI Drug Discovery",             "country": "United States"},
+    "836100107": {"ticker": "SOUN", "name": "SoundHound AI Inc",            "sector": "Software",              "industry": "Voice / Conversational AI",     "country": "United States"},
+    "90089L108": {"ticker": "TSP",  "name": "TuSimple Holdings Inc",         "sector": "Autonomous & Robotics", "industry": "Autonomous Trucking",           "country": "United States"},
+    "038169207": {"ticker": "APLD", "name": "Applied Digital Corp",          "sector": "AI Infrastructure",     "industry": "Neocloud / Data Centers",       "country": "United States"},
+    "81758H106": {"ticker": "SERV", "name": "Serve Robotics Inc",            "sector": "Autonomous & Robotics", "industry": "Delivery Robotics",             "country": "United States"},
+    "21873S108": {"ticker": "CRWV", "name": "CoreWeave Inc",                 "sector": "AI Infrastructure",     "industry": "Neocloud / GPU Cloud",          "country": "United States"},
+    "N97284108": {"ticker": "NBIS", "name": "Nebius Group N.V.",             "sector": "AI Infrastructure",     "industry": "Neocloud / GPU Cloud",          "country": "Netherlands"},
+    "950915108": {"ticker": "WRD",  "name": "WeRide Inc",                    "sector": "Autonomous & Robotics", "industry": "Autonomous Driving",            "country": "China"},
+    "458140100": {"ticker": "INTC", "name": "Intel Corporation",            "sector": "Semiconductors",        "industry": "Integrated Semiconductors",     "country": "United States"},
+    "871607107": {"ticker": "SNPS", "name": "Synopsys Inc",                  "sector": "Semiconductors",        "industry": "EDA / Chip Design Software",     "country": "United States"},
+    "654902204": {"ticker": "NOK",  "name": "Nokia Corporation",            "sector": "Networking & Photonics","industry": "Communications Equipment",      "country": "Finland"},
+    "19247G107": {"ticker": "COHR", "name": "Coherent Corp",                 "sector": "Networking & Photonics","industry": "Optical / Photonics",           "country": "United States"},
+    "370920100": {"ticker": "GENE", "name": "Generate Biomedicines Inc",     "sector": "Healthcare",            "industry": "AI Protein / Drug Design",      "country": "United States"}
+  },
+  "filings": [
+    {
+      "period": "2023-12-31", "quarter": "Q4 2023", "filed": "2024-02-14",
+      "accession": "0001045810-24-000021", "formType": "13F-HR", "verified": false,
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581024000021/0001045810-24-000021-index.html",
+      "holdings": [
+        {"cusip": "042068205", "class": "SPONSORED ADR", "value": 147349144, "shares": 1960784, "discretion": "SOLE"},
+        {"cusip": "75629V104", "class": "CL A",          "value": 75980000,  "shares": 7706363, "discretion": "SOLE"},
+        {"cusip": "90089L108", "class": "COM CL A",      "value": 3040000,   "shares": 3470000, "discretion": "SOLE"},
+        {"cusip": "836100107", "class": "CLASS A COM",   "value": 3670000,   "shares": 1730883, "discretion": "SOLE"},
+        {"cusip": "M70700105", "class": "ORD SHS",       "value": 379856,    "shares": 59632,   "discretion": "DFND"}
+      ]
+    },
+    {
+      "period": "2024-03-31", "quarter": "Q1 2024", "filed": "2024-05-15",
+      "accession": "0001045810-24-000108", "formType": "13F-HR", "verified": true,
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581024000108/0001045810-24-000108-index.html",
+      "holdings": [
+        {"cusip": "042068205", "class": "SPONSORED ADR", "value": 245078392, "shares": 1960784, "discretion": "SOLE"},
+        {"cusip": "75629V104", "class": "CL A",          "value": 76832439,  "shares": 7706363, "discretion": "SOLE"},
+        {"cusip": "836100107", "class": "CLASS A COM",   "value": 10194901,  "shares": 1730883, "discretion": "SOLE"},
+        {"cusip": "M70700105", "class": "ORD SHS",       "value": 582605,    "shares": 59632,   "discretion": "DFND"}
+      ]
+    },
+    {
+      "period": "2024-06-30", "quarter": "Q2 2024", "filed": "2024-08-14",
+      "accession": "0001045810-24-000256", "formType": "13F-HR", "verified": false,
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581024000256/0001045810-24-000256-index.html",
+      "holdings": [
+        {"cusip": "042068205", "class": "SPONSORED ADR", "value": 318700000, "shares": 1960784, "discretion": "SOLE"},
+        {"cusip": "75629V104", "class": "CL A",          "value": 52900000,  "shares": 7706363, "discretion": "SOLE"},
+        {"cusip": "81758H106", "class": "COM",           "value": 13518000,  "shares": 2795000, "discretion": "SOLE"},
+        {"cusip": "836100107", "class": "CLASS A COM",   "value": 7550000,   "shares": 1730883, "discretion": "SOLE"},
+        {"cusip": "M70700105", "class": "ORD SHS",       "value": 495000,    "shares": 59632,   "discretion": "DFND"}
+      ]
+    },
+    {
+      "period": "2024-09-30", "quarter": "Q3 2024", "filed": "2024-11-14",
+      "accession": "0001045810-24-000305", "formType": "13F-HR", "verified": false,
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581024000305/0001045810-24-000305-index.html",
+      "holdings": [
+        {"cusip": "042068205", "class": "SPONSORED ADR", "value": 279930000, "shares": 1960784, "discretion": "SOLE"},
+        {"cusip": "038169207", "class": "COM NEW",       "value": 63650000,  "shares": 7716050, "discretion": "SOLE"},
+        {"cusip": "75629V104", "class": "CL A",          "value": 50780000,  "shares": 7706363, "discretion": "SOLE"},
+        {"cusip": "81758H106", "class": "COM",           "value": 29630000,  "shares": 2795000, "discretion": "SOLE"},
+        {"cusip": "836100107", "class": "CLASS A COM",   "value": 8450000,   "shares": 1730883, "discretion": "SOLE"},
+        {"cusip": "M70700105", "class": "ORD SHS",       "value": 472000,    "shares": 59632,   "discretion": "DFND"}
+      ]
+    },
+    {
+      "period": "2024-12-31", "quarter": "Q4 2024", "filed": "2025-02-14",
+      "accession": "0001045810-25-000013", "formType": "13F-HR", "verified": false,
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581025000013/0001045810-25-000013-index.html",
+      "holdings": [
+        {"cusip": "042068205", "class": "SPONSORED ADR", "value": 137184000, "shares": 1101249, "discretion": "SOLE"},
+        {"cusip": "038169207", "class": "COM NEW",       "value": 65500000,  "shares": 7716050, "discretion": "SOLE"},
+        {"cusip": "75629V104", "class": "CL A",          "value": 48550000,  "shares": 7706363, "discretion": "SOLE"},
+        {"cusip": "N97284108", "class": "SHS CLASS A",   "value": 29290000,  "shares": 1190476, "discretion": "SOLE"},
+        {"cusip": "950915108", "class": "SPONSORED ADS", "value": 24000000,  "shares": 1738563, "discretion": "DFND"}
+      ]
+    },
+    {
+      "period": "2025-03-31", "quarter": "Q1 2025", "filed": "2025-05-15",
+      "accession": "0001045810-25-000102", "formType": "13F-HR", "verified": false,
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581025000102/0001045810-25-000102-index.html",
+      "holdings": [
+        {"cusip": "21873S108", "class": "COM CL A",      "value": 907522000, "shares": 24277573, "discretion": "SOLE"},
+        {"cusip": "042068205", "class": "SPONSORED ADS", "value": 117800000, "shares": 1101249,  "discretion": "SOLE"},
+        {"cusip": "038169207", "class": "COM NEW",       "value": 38580000,  "shares": 7716050,  "discretion": "SOLE"},
+        {"cusip": "75629V104", "class": "CL A",          "value": 35450000,  "shares": 7706363,  "discretion": "SOLE"},
+        {"cusip": "N97284108", "class": "SHS CLASS A",   "value": 32140000,  "shares": 1190476,  "discretion": "SOLE"},
+        {"cusip": "950915108", "class": "SPONSORED ADS", "value": 15650000,  "shares": 1738563,  "discretion": "DFND"}
+      ]
+    },
+    {
+      "period": "2025-06-30", "quarter": "Q2 2025", "filed": "2025-08-14",
+      "accession": "0001045810-25-000199", "formType": "13F-HR", "verified": true,
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581025000199/0001045810-25-000199-index.html",
+      "holdings": [
+        {"cusip": "038169207", "class": "COM NEW",       "value": 77700624,   "shares": 7716050,  "discretion": "SOLE"},
+        {"cusip": "042068205", "class": "SPONSORED ADS", "value": 178116013,  "shares": 1101249,  "discretion": "SOLE"},
+        {"cusip": "21873S108", "class": "COM CL A",      "value": 3958701053, "shares": 24277573, "discretion": "SOLE"},
+        {"cusip": "N97284108", "class": "SHS CLASS A",   "value": 65869037,   "shares": 1190476,  "discretion": "SOLE"},
+        {"cusip": "75629V104", "class": "CL A",          "value": 38994197,   "shares": 7706363,  "discretion": "SOLE"},
+        {"cusip": "950915108", "class": "SPONSORED ADS", "value": 13699876,   "shares": 1738563,  "discretion": "DFND"}
+      ]
+    },
+    {
+      "period": "2025-09-30", "quarter": "Q3 2025", "filed": "2025-11-14",
+      "accession": "0001045810-25-000219", "formType": "13F-HR", "verified": true,
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581025000219/0001045810-25-000219-index.html",
+      "holdings": [
+        {"cusip": "038169207", "class": "COM NEW",       "value": 177006187,  "shares": 7716050,  "discretion": "SOLE"},
+        {"cusip": "042068205", "class": "SPONSORED ADS", "value": 155815721,  "shares": 1101249,  "discretion": "SOLE"},
+        {"cusip": "21873S108", "class": "COM CL A",      "value": 3322385865, "shares": 24277573, "discretion": "SOLE"},
+        {"cusip": "N97284108", "class": "SHS CLASS A",   "value": 133654741,  "shares": 1190476,  "discretion": "SOLE"},
+        {"cusip": "75629V104", "class": "CL A",          "value": 37607051,   "shares": 7706363,  "discretion": "SOLE"},
+        {"cusip": "950915108", "class": "SPONSORED ADS", "value": 17211774,   "shares": 1738563,  "discretion": "DFND"}
+      ]
+    },
+    {
+      "period": "2025-12-31", "quarter": "Q4 2025", "filed": "2026-02-17",
+      "accession": "0001045810-26-000011", "formType": "13F-HR", "verified": true,
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000011/0001045810-26-000011-index.html",
+      "holdings": [
+        {"cusip": "21873S108", "class": "COM CL A",      "value": 1738517003, "shares": 24277573,  "discretion": "SOLE"},
+        {"cusip": "458140100", "class": "COM",           "value": 7925257721, "shares": 214776632, "discretion": "SOLE"},
+        {"cusip": "N97284108", "class": "SHS CLASS A",   "value": 99648794,   "shares": 1190476,   "discretion": "SOLE"},
+        {"cusip": "654902204", "class": "SPONSORED ADR", "value": 1076539101, "shares": 166389351, "discretion": "SOLE"},
+        {"cusip": "871607107", "class": "COM",           "value": 2264856909, "shares": 4821717,   "discretion": "SOLE"}
+      ]
+    },
+    {
+      "period": "2026-03-31", "quarter": "Q1 2026", "filed": "2026-05-15",
+      "accession": "0001045810-26-000042", "formType": "13F-HR", "verified": true,
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000042/0001045810-26-000042-index.html",
+      "holdings": [
+        {"cusip": "19247G107", "class": "COM",           "value": 1855217832, "shares": 7788161,   "discretion": "SOLE"},
+        {"cusip": "21873S108", "class": "COM CL A",      "value": 3657618457, "shares": 47213353,  "discretion": "SOLE"},
+        {"cusip": "370920100", "class": "COM SHS",       "value": 10416563,   "shares": 833325,    "discretion": "SOLE"},
+        {"cusip": "458140100", "class": "COM",           "value": 9478092770, "shares": 214776632, "discretion": "SOLE"},
+        {"cusip": "N97284108", "class": "SHS CLASS A",   "value": 123523790,  "shares": 1190476,   "discretion": "SOLE"},
+        {"cusip": "654902204", "class": "SPONSORED ADR", "value": 1337770382, "shares": 166389351, "discretion": "SOLE"},
+        {"cusip": "871607107", "class": "COM",           "value": 1911714356, "shares": 4821717,   "discretion": "SOLE"}
+      ]
+    }
+  ]
+}</script>
+<script>
+/* ============================================================
+   NVIDIA 13F Terminal — client analytics engine + views
+   ============================================================ */
+const DB = JSON.parse(document.getElementById('dataset').textContent);
+const SEC = DB.securities;
+const RAW = DB.filings;
+
+/* ---------- palette / theme ---------- */
+const C = {green:'#76B900',pos:'#3FB950',neg:'#F26D6D',amber:'#E3A008',blue:'#4C8DFF',purple:'#A371F7',cyan:'#37C2C4',
+  text:'#E8EEF4',muted:'#93A2B2',faint:'#61707E',line:'#222C37',grid:'#1A222B',panel:'#10151B'};
+const SECTOR_COLORS = {
+  'Semiconductors':'#76B900','AI Infrastructure':'#4C8DFF','Networking & Photonics':'#37C2C4',
+  'Healthcare':'#A371F7','Software':'#E3A008','Autonomous & Robotics':'#F26D6D'};
+const SERIES_PALETTE = ['#76B900','#4C8DFF','#37C2C4','#A371F7','#E3A008','#F26D6D','#3FB950','#8899A8','#C77DFF','#5AC8FA','#FF9F45','#6E7F8D','#00C2A8','#FF6B9D','#9EE37D'];
+
+/* ---------- formatting ---------- */
+const fUSD = v => {const a=Math.abs(v);const s=v<0?'-':'';
+  if(a>=1e9)return s+'$'+(a/1e9).toFixed(2)+'B';
+  if(a>=1e6)return s+'$'+(a/1e6).toFixed(1)+'M';
+  if(a>=1e3)return s+'$'+(a/1e3).toFixed(1)+'K';
+  return s+'$'+a.toFixed(0);};
+const fUSDfull = v => (v<0?'-':'')+'$'+Math.abs(v).toLocaleString('en-US');
+const fN = v => Math.round(v).toLocaleString('en-US');
+const fPct = v => (v>0?'+':'')+v.toFixed(1)+'%';
+const fW = v => v.toFixed(1)+'%';
+const sgn = v => v>0?'pos':(v<0?'neg':'');
+const qShort = q => q.replace(' ',"'").replace("Q1'","Q1 ").replace(/(Q\d)'(\d{4})/,'$1 ’'+'$2').replace(/’(\d{2})(\d{2})/,'’$2');
+function qCompact(q){const[qq,yy]=q.split(' ');return qq+" ’"+yy.slice(2);}
+
+/* ============================================================
+   BUILD ENRICHED MODEL
+   ============================================================ */
+function buildModel(){
+  const filings = RAW.map((f,i)=>{
+    const total = f.holdings.reduce((s,h)=>s+h.value,0);
+    const prev = i>0?RAW[i-1]:null;
+    const prevMap = {}; if(prev) prev.holdings.forEach(h=>prevMap[h.cusip]=h);
+    let hs = f.holdings.map(h=>{
+      const s = SEC[h.cusip];
+      const p = prevMap[h.cusip];
+      let status='new',sharesChg=null,sharesPct=null,valueChg=null,valuePct=null;
+      if(p){
+        sharesChg=h.shares-p.shares; valueChg=h.value-p.value;
+        sharesPct=p.shares?(sharesChg/p.shares*100):0;
+        valuePct=p.value?(valueChg/p.value*100):0;
+        status = sharesChg>0?'add':(sharesChg<0?'red':'hold');
+      }
+      return {...h,...s,weight:h.value/total*100,status,sharesChg,sharesPct,valueChg,valuePct};
+    });
+    hs.sort((a,b)=>b.value-a.value); hs.forEach((h,r)=>h.rank=r+1);
+    // exits: in prev not in current
+    const curSet = new Set(f.holdings.map(h=>h.cusip));
+    const exits = prev? prev.holdings.filter(h=>!curSet.has(h.cusip)).map(h=>({...h,...SEC[h.cusip]})) : [];
+    const byCusip={}; hs.forEach(h=>byCusip[h.cusip]=h);
+    return {...f,total,holdings:hs,exits,byCusip,
+      avg:total/hs.length, top5:hs.slice(0,5).reduce((s,h)=>s+h.value,0)/total*100,
+      newN:hs.filter(h=>h.status==='new').length, exitN:exits.length};
+  });
+
+  // per-security series + lifetime
+  const cusips=[...new Set(RAW.flatMap(f=>f.holdings.map(h=>h.cusip)))];
+  const series={};
+  cusips.forEach(cu=>{
+    const shares=[],value=[],weight=[],rank=[],present=[];
+    filings.forEach(f=>{const h=f.byCusip[cu];
+      present.push(!!h);shares.push(h?h.shares:null);value.push(h?h.value:null);weight.push(h?h.weight:null);rank.push(h?h.rank:null);});
+    const idx=present.map((p,i)=>p?i:-1).filter(i=>i>=0);
+    const firstIdx=idx[0],lastIdx=idx[idx.length-1];
+    const sv=shares.filter(x=>x!=null),vv=value.filter(x=>x!=null);
+    const curH=filings[filings.length-1].byCusip[cu];
+    const lifetime={
+      firstIdx,lastIdx,duration:idx.length,
+      firstQ:filings[firstIdx].quarter,lastQ:filings[lastIdx].quarter,
+      maxShares:Math.max(...sv),minShares:Math.min(...sv),
+      maxValue:Math.max(...vv),minValue:Math.min(...vv),
+      firstShares:filings[firstIdx].byCusip[cu].shares,firstValue:filings[firstIdx].byCusip[cu].value,
+      lastShares:filings[lastIdx].byCusip[cu].shares,lastValue:filings[lastIdx].byCusip[cu].value,
+      currentShares:curH?curH.shares:0,currentValue:curH?curH.value:0,currentWeight:curH?curH.weight:0,
+      held:!!curH};
+    lifetime.shareDelta=lifetime.lastShares-lifetime.firstShares;
+    lifetime.valueDelta=lifetime.lastValue-lifetime.firstValue;
+    series[cu]={shares,value,weight,rank,present,firstIdx,lastIdx,lifetime};
+  });
+  return {filings,series,cusips,quarters:filings.map(f=>f.quarter)};
+}
+const M = buildModel();
+const LAST = M.filings.length-1;
+
+/* ============================================================
+   ECHARTS helpers
+   ============================================================ */
+const charts={};
+function chart(id){if(!charts[id]){charts[id]=echarts.init(document.getElementById(id),null,{renderer:'canvas'});}return charts[id];}
+function draw(id,opt){const c=chart(id);c.setOption(opt,true);requestAnimationFrame(()=>c.resize());return c;}
+const AXBASE={axisLine:{lineStyle:{color:C.line}},axisTick:{show:false},axisLabel:{color:C.faint,fontFamily:'JetBrains Mono',fontSize:11},splitLine:{lineStyle:{color:C.grid}}};
+const TIP={backgroundColor:'#0E141A',borderColor:C.line,borderWidth:1,textStyle:{color:C.text,fontFamily:'JetBrains Mono',fontSize:12},
+  extraCssText:'box-shadow:0 8px 30px rgba(0,0,0,.5);border-radius:8px;padding:10px 12px'};
+
+/* ============================================================
+   TICKER STRIP + AS OF
+   ============================================================ */
+(function(){
+  const f=M.filings[LAST];
+  const items=f.holdings.map(h=>`<span class="tk"><b>${h.ticker}</b><span class="v">${fUSD(h.value)}</span><span class="${sgn(h.valuePct||0)}">${h.valuePct!=null?fPct(h.valuePct):'NEW'}</span></span>`).join('');
+  document.getElementById('ticker').innerHTML=items+items;
+  document.getElementById('asof').textContent='As of '+f.quarter+' · filed '+f.filed;
+  document.getElementById('heroLast').textContent=f.quarter;
+})();
+
+/* ============================================================
+   OVERVIEW
+   ============================================================ */
+let scrubIdx=LAST, playing=false, playTimer=null;
+
+function quarterKPIs(i){
+  const f=M.filings[i];
+  const largest=f.holdings[0];
+  const incs=f.holdings.filter(h=>h.valueChg>0).sort((a,b)=>b.valueChg-a.valueChg);
+  const reds=f.holdings.filter(h=>h.valueChg<0).sort((a,b)=>a.valueChg-b.valueChg);
+  const pv=i>0?M.filings[i-1].total:null;
+  return {total:f.total,n:f.holdings.length,largest,avg:f.avg,top5:f.top5,
+    newN:f.newN,exitN:f.exitN,
+    inc:incs[0]||null,red:reds[0]||null,
+    valChg:pv!=null?f.total-pv:null,valPct:pv!=null&&pv?((f.total-pv)/pv*100):null};
+}
+function renderKPIs(i){
+  const k=quarterKPIs(i);
+  const box=document.getElementById('kpis');
+  const cards=[
+    {c:'',k:'Portfolio Value',v:fUSD(k.total),s:k.valChg!=null?`<span class="${sgn(k.valChg)}">${fUSD(k.valChg)} (${fPct(k.valPct)})</span> QoQ`:'First filing'},
+    {c:'alt',k:'Holdings',v:k.n,s:`${k.newN} new · ${k.exitN} exited`},
+    {c:'',k:'Largest Holding',v:k.largest.ticker,s:`${fUSD(k.largest.value)} · ${fW(k.largest.weight)}`},
+    {c:'alt',k:'Avg Position',v:fUSD(k.avg),s:'per holding'},
+    {c:k.inc?'':'warn',k:'Largest Increase',v:k.inc?k.inc.ticker:'—',s:k.inc?`<span class="pos">${fUSD(k.inc.valueChg)}</span>`:'none'},
+    {c:'rose',k:'Largest Reduction',v:k.red?k.red.ticker:'—',s:k.red?`<span class="neg">${fUSD(k.red.valueChg)}</span>`:'none'},
+    {c:'warn',k:'Top-5 Concentration',v:fW(k.top5),s:k.n<=5?'entire book':'of portfolio'},
+  ];
+  box.innerHTML=cards.map(c=>`<div class="kpi ${c.c}"><div class="k">${c.k}</div><div class="v">${c.v}</div><div class="s">${c.s}</div></div>`).join('');
+}
+function renderTop5(i){
+  const f=M.filings[i];
+  document.getElementById('top5q').textContent=f.quarter;
+  const max=f.holdings[0].value;
+  document.getElementById('top5').innerHTML=f.holdings.slice(0,5).map((h,idx)=>`
+    <div class="moverrow" data-cu="${h.cusip}" style="cursor:pointer;border-bottom:1px solid rgba(34,44,55,.5)">
+      <div style="display:flex;align-items:center;gap:11px;min-width:0">
+        <span class="faint" style="width:16px">${idx+1}</span>
+        <span class="tk-badge">${h.ticker}</span>
+        <span class="coname" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.name}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="width:90px;height:6px;background:var(--grid);border-radius:3px;overflow:hidden"><div style="width:${h.value/max*100}%;height:100%;background:${SECTOR_COLORS[h.sector]||C.green}"></div></div>
+        <span style="width:74px;text-align:right;font-weight:600">${fUSD(h.value)}</span>
+        <span class="muted" style="width:46px;text-align:right">${fW(h.weight)}</span>
+      </div></div>`).join('');
+  document.querySelectorAll('#top5 .moverrow').forEach(r=>r.onclick=()=>openDrawer(r.dataset.cu));
+}
+function renderConc(i){
+  const f=M.filings[i];
+  const top=f.holdings.slice(0,4);
+  const rest=f.holdings.slice(4).reduce((s,h)=>s+h.value,0);
+  const data=top.map((h,ix)=>({name:h.ticker,value:h.value,itemStyle:{color:SERIES_PALETTE[ix]}}));
+  if(rest>0)data.push({name:'Others',value:rest,itemStyle:{color:'#3A4652'}});
+  draw('concChart',{tooltip:{...TIP,formatter:p=>`${p.name}<br/>${fUSD(p.value)} · ${p.percent}%`},
+    series:[{type:'pie',radius:['58%','82%'],center:['50%','50%'],avoidLabelOverlap:false,
+      label:{show:true,position:'center',formatter:()=>`{a|${fW(f.top5)}}\n{b|TOP 5}`,
+        rich:{a:{color:C.text,fontSize:26,fontFamily:'JetBrains Mono',fontWeight:600},b:{color:C.faint,fontSize:11,letterSpacing:2,padding:[6,0,0,0]}}},
+      labelLine:{show:false},itemStyle:{borderColor:C.panel,borderWidth:2},data}]});
+}
+function renderLatestChanges(i){
+  const lines=changelogLines(i);
+  const f=M.filings[i];
+  document.getElementById('latestMeta').textContent=`${f.quarter} · filed ${f.filed} · ${f.accession}`;
+  document.getElementById('latestChanges').innerHTML = lines.length?lines.map(l=>logLine(l)).join(''):'<div class="muted">No prior filing to compare.</div>';
+}
+function heroChart(){
+  const vals=M.filings.map(f=>f.total);
+  const labels=M.filings.map(f=>qCompact(f.quarter));
+  const verified=M.filings.map(f=>f.verified);
+  draw('heroChart',{
+    grid:{left:8,right:14,top:18,bottom:24,containLabel:true},
+    tooltip:{trigger:'axis',...TIP,formatter:ps=>{const i=ps[0].dataIndex;const f=M.filings[i];
+      return `${f.quarter}<br/><b>${fUSDfull(f.total)}</b><br/>${f.holdings.length} holdings · ${f.verified?'verified':'reconstructed'}`;}},
+    xAxis:{type:'category',data:labels,boundaryGap:false,...AXBASE},
+    yAxis:{type:'value',...AXBASE,axisLabel:{...AXBASE.axisLabel,formatter:v=>fUSD(v)}},
+    series:[{type:'line',data:vals,smooth:.28,symbol:'circle',symbolSize:(v,p)=>p.dataIndex===scrubIdx?11:6,
+      lineStyle:{color:C.green,width:2.4},
+      itemStyle:{color:p=>verified[p.dataIndex]?C.green:'#6E7F8D',borderColor:C.panel,borderWidth:2},
+      areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(118,185,0,.34)'},{offset:1,color:'rgba(118,185,0,.02)'}])},
+      markLine:{silent:true,symbol:'none',lineStyle:{color:C.amber,type:'dashed',width:1.2},
+        data:[{xAxis:scrubIdx,label:{show:false}}]}}]});
+}
+function setScrub(i){
+  scrubIdx=i;
+  document.getElementById('scrub').value=i;
+  document.getElementById('scrubQ').textContent=M.filings[i].quarter;
+  renderKPIs(i);renderTop5(i);renderConc(i);renderLatestChanges(i);heroChart();
+}
+function initOverview(){
+  const sc=document.getElementById('scrub');sc.max=LAST;sc.value=LAST;
+  sc.oninput=()=>{stopPlay();setScrub(+sc.value);};
+  document.getElementById('playBtn').onclick=togglePlay;
+  setScrub(LAST);
+}
+function togglePlay(){playing?stopPlay():startPlay();}
+function startPlay(){playing=true;document.getElementById('playBtn').innerHTML='❚❚ Pause';
+  let i = scrubIdx>=LAST?0:scrubIdx;
+  setScrub(i);
+  playTimer=setInterval(()=>{i++;if(i>LAST){stopPlay();return;}setScrub(i);},900);}
+function stopPlay(){playing=false;clearInterval(playTimer);document.getElementById('playBtn').innerHTML='▶ Play';}
+
+/* ============================================================
+   CHANGE LOG
+   ============================================================ */
+function changelogLines(i){
+  if(i===0){const f=M.filings[0];
+    return [{t:'init',txt:`Initial disclosed 13F: <b>${f.holdings.length} positions</b> totalling <b>${fUSDfull(f.total)}</b>.`}]
+      .concat(f.holdings.map(h=>({t:'new',txt:`Initiated <b>${h.ticker}</b> (${h.name}) — ${fN(h.shares)} sh, ${fUSD(h.value)}.`})));
+  }
+  const f=M.filings[i],p=M.filings[i-1];
+  const out=[];
+  const vc=f.total-p.total, vp=p.total?vc/p.total*100:0;
+  out.push({t:vc>=0?'up':'down',txt:`Portfolio value ${vc>=0?'rose':'fell'} <b class="${sgn(vc)}">${fUSD(vc)}</b> (${fPct(vp)}) to <b>${fUSD(f.total)}</b>.`});
+  f.holdings.filter(h=>h.status==='new').forEach(h=>out.push({t:'new',txt:`Initiated <b>${h.ticker}</b> (${h.name}) — ${fN(h.shares)} sh, ${fUSD(h.value)}.`}));
+  f.exits.forEach(h=>out.push({t:'exit',txt:`Exited <b>${SEC[h.cusip].ticker}</b> (${SEC[h.cusip].name}).`}));
+  f.holdings.filter(h=>h.status==='add').sort((a,b)=>b.sharesPct-a.sharesPct).forEach(h=>out.push({t:'add',txt:`Increased <b>${h.ticker}</b> <span class="pos">${fPct(h.sharesPct)}</span> (${fN(h.shares-h.sharesChg)}→${fN(h.shares)} sh).`}));
+  f.holdings.filter(h=>h.status==='red').sort((a,b)=>a.sharesPct-b.sharesPct).forEach(h=>out.push({t:'red',txt:`Reduced <b>${h.ticker}</b> <span class="neg">${fPct(h.sharesPct)}</span> (${fN(h.shares-h.sharesChg)}→${fN(h.shares)} sh).`}));
+  return out;
+}
+const LOGIC={init:'◆',up:'▲',down:'▼',new:'＋',exit:'✕',add:'▲',red:'▼'};
+const LOGCLASS={up:'pos',down:'neg',new:'pos',exit:'amber',add:'blue',red:'neg',init:'faint'};
+function logLine(l){return `<div class="qlog-line"><span class="ic ${LOGCLASS[l.t]}" style="width:14px;text-align:center">${LOGIC[l.t]}</span><span>${l.txt}</span></div>`;}
+function renderChangelog(){
+  const el=document.getElementById('qlog');
+  let html='';
+  for(let i=LAST;i>=0;i--){const f=M.filings[i];
+    html+=`<div class="qlog-item ${f.verified?'':'re'}">
+      <div class="qlog-h"><span class="qlog-q">${f.quarter}</span>
+        <span class="qlog-meta">filed ${f.filed} · ${f.formType}</span>
+        <span class="tag-v ${f.verified?'ok':'re'}">${f.verified?'VERIFIED':'RECONSTRUCTED'}</span>
+        <span class="qlog-tv">${fUSD(f.total)}</span></div>
+      ${changelogLines(i).map(logLine).join('')}
+    </div>`;}
+  el.innerHTML=html;
+}
+
+/* ============================================================
+   HOLDINGS TABLE
+   ============================================================ */
+const HCOLS=[
+  {k:'ticker',t:'Ticker',l:true},{k:'name',t:'Company',l:true},
+  {k:'shares',t:'Shares'},{k:'value',t:'Value'},{k:'weight',t:'Weight'},
+  {k:'sharesChg',t:'Qtr Δ Sh'},{k:'valuePct',t:'% Δ Val'},
+  {k:'firstQ',t:'First Bought',l:true},{k:'filed',t:'Last Updated',l:true},{k:'status',t:'Status',l:true}];
+let hState={qi:LAST,sort:'value',dir:-1,filter:'all',q:'',sector:''};
+function hRows(){
+  const f=M.filings[hState.qi];
+  let rows;
+  if(hState.filter==='exit'){
+    rows=f.exits.map(h=>({...h,weight:0,value:0,shares:0,status:'exit',sharesChg:null,valuePct:null,
+      firstQ:M.series[h.cusip].lifetime.firstQ,filed:f.filed}));
+  }else{
+    rows=f.holdings.map(h=>({...h,firstQ:M.series[h.cusip].lifetime.firstQ,filed:f.filed}));
+    if(hState.filter!=='all')rows=rows.filter(h=>h.status===hState.filter);
+  }
+  if(hState.sector)rows=rows.filter(h=>h.sector===hState.sector);
+  if(hState.q){const q=hState.q.toLowerCase();
+    rows=rows.filter(h=>[h.ticker,h.name,h.cusip,h.sector,h.industry].join(' ').toLowerCase().includes(q));}
+  rows.sort((a,b)=>{let x=a[hState.sort],y=b[hState.sort];
+    if(x==null)x=-Infinity;if(y==null)y=-Infinity;
+    if(typeof x==='string')return hState.dir*x.localeCompare(y);
+    return hState.dir*(x-y);});
+  return rows;
+}
+function statusBadge(s){const map={new:['s-new','New'],add:['s-add','Increased'],red:['s-red','Reduced'],hold:['s-hold','Unchanged'],exit:['s-exit','Exited']};
+  const[c,t]=map[s]||['s-hold',s];return `<span class="stat ${c}">${t}</span>`;}
+function renderHoldings(){
+  const th=document.querySelector('#hTable thead');
+  th.innerHTML='<tr>'+HCOLS.map(c=>{const act=hState.sort===c.k;
+    return `<th class="${c.l?'l':''}" data-k="${c.k}">${c.t} <span class="ar">${act?(hState.dir<0?'▼':'▲'):'⇅'}</span></th>`;}).join('')+'</tr>';
+  th.querySelectorAll('th').forEach(h=>h.onclick=()=>{const k=h.dataset.k;
+    if(hState.sort===k)hState.dir*=-1;else{hState.sort=k;hState.dir=(k==='ticker'||k==='name'||k==='status'||k==='firstQ')?1:-1;}renderHoldings();});
+  const rows=hRows();
+  const tb=document.querySelector('#hTable tbody');
+  tb.innerHTML=rows.map(h=>`<tr data-cu="${h.cusip}">
+    <td class="l"><span class="tk-badge">${h.ticker}</span></td>
+    <td class="l"><div class="coname">${h.name}</div><div class="cosub">${h.sector} · ${h.class}</div></td>
+    <td>${h.status==='exit'?'—':fN(h.shares)}</td>
+    <td>${h.status==='exit'?'—':fUSD(h.value)}</td>
+    <td>${h.status==='exit'?'—':fW(h.weight)}</td>
+    <td class="${sgn(h.sharesChg)}">${h.sharesChg==null?'—':(h.sharesChg>0?'+':'')+fN(h.sharesChg)}</td>
+    <td class="${sgn(h.valuePct)}">${h.valuePct==null?'—':fPct(h.valuePct)}</td>
+    <td class="l mono faint">${qCompact(h.firstQ)}</td>
+    <td class="l mono faint">${h.filed}</td>
+    <td class="l">${statusBadge(h.status)}</td></tr>`).join('');
+  tb.querySelectorAll('tr').forEach(r=>r.onclick=()=>openDrawer(r.dataset.cu));
+  document.getElementById('hCount').textContent=`${rows.length} position${rows.length!==1?'s':''} · ${M.filings[hState.qi].quarter} · total ${fUSDfull(M.filings[hState.qi].total)}`;
+}
+function initHoldings(){
+  const qs=document.getElementById('hQuarter');
+  qs.innerHTML=M.filings.map((f,i)=>`<option value="${i}" ${i===LAST?'selected':''}>${f.quarter} — ${f.verified?'verified':'reconstructed'}</option>`).reverse().join('');
+  qs.onchange=()=>{hState.qi=+qs.value;renderHoldings();};
+  const secs=[...new Set(Object.values(SEC).map(s=>s.sector))].sort();
+  document.getElementById('hSector').innerHTML='<option value="">All sectors</option>'+secs.map(s=>`<option>${s}</option>`).join('');
+  document.getElementById('hSector').onchange=e=>{hState.sector=e.target.value;renderHoldings();};
+  document.getElementById('hSearch').oninput=e=>{hState.q=e.target.value;renderHoldings();};
+  document.querySelectorAll('#hChips .chip').forEach(c=>c.onclick=()=>{
+    document.querySelectorAll('#hChips .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');
+    hState.filter=c.dataset.f;renderHoldings();});
+  document.getElementById('expCsv').onclick=()=>exportRows('csv');
+  document.getElementById('expCopy').onclick=()=>exportRows('copy');
+  renderHoldings();
+}
+function exportRows(mode){
+  const rows=hRows();const f=M.filings[hState.qi];
+  const head=['Ticker','Company','CUSIP','Class','Sector','Country','Shares','MarketValue','Weight%','Status','FirstBought','ReportPeriod','FiledDate','Accession'];
+  const lines=[head].concat(rows.map(h=>[h.ticker,h.name,h.cusip,h.class,h.sector,h.country,
+    h.status==='exit'?0:h.shares,h.status==='exit'?0:h.value,h.status==='exit'?0:h.weight.toFixed(2),
+    h.status,h.firstQ,f.period,f.filed,f.accession]));
+  const sep=mode==='csv'?',':'\t';
+  const body=lines.map(r=>r.map(c=>{c=String(c);return (mode==='csv'&&/[",\n]/.test(c))?'"'+c.replace(/"/g,'""')+'"':c;}).join(sep)).join('\n');
+  if(mode==='copy'){navigator.clipboard.writeText(body).then(()=>toast('Copied '+rows.length+' rows'));return;}
+  const blob=new Blob([body],{type:'text/csv'});const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download=`NVIDIA_13F_${f.quarter.replace(' ','_')}.csv`;a.click();toast('Exported CSV');
+}
+function toast(msg){let t=document.getElementById('_toast');if(!t){t=document.createElement('div');t.id='_toast';
+  t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0E141A;border:1px solid var(--line2);color:var(--text);padding:10px 18px;border-radius:8px;font-size:13px;z-index:100;box-shadow:0 8px 30px rgba(0,0,0,.5);font-family:var(--mono)';document.body.appendChild(t);}
+  t.textContent=msg;t.style.opacity='1';clearTimeout(t._h);t._h=setTimeout(()=>t.style.opacity='0',1600);}
+
+/* ============================================================
+   TIMELINE
+   ============================================================ */
+let tlMetric='value';
+const TL_META={
+  value:{label:'Portfolio Value',fmt:fUSD,get:f=>f.total,color:C.green},
+  count:{label:'Number of Holdings',fmt:v=>v,get:f=>f.holdings.length,color:C.blue},
+  avg:{label:'Average Position',fmt:fUSD,get:f=>f.avg,color:C.cyan},
+  max:{label:'Largest Position',fmt:fUSD,get:f=>f.holdings[0].value,color:C.purple},
+  conc:{label:'Top-5 Concentration',fmt:v=>v.toFixed(1)+'%',get:f=>f.top5,color:C.amber}};
+function renderTimeline(){
+  const m=TL_META[tlMetric];
+  const labels=M.filings.map(f=>qCompact(f.quarter));
+  const data=M.filings.map(m.get);
+  draw('tlChart',{grid:{left:10,right:18,top:22,bottom:28,containLabel:true},
+    tooltip:{trigger:'axis',...TIP,formatter:ps=>{const i=ps[0].dataIndex;const f=M.filings[i];
+      return `${f.quarter}<br/><b>${m.fmt(data[i])}</b>`;}},
+    xAxis:{type:'category',data:labels,boundaryGap:false,...AXBASE},
+    yAxis:{type:'value',...AXBASE,axisLabel:{...AXBASE.axisLabel,formatter:v=>m.fmt(v)}},
+    series:[{type:'line',data,smooth:.25,symbol:'circle',symbolSize:7,lineStyle:{color:m.color,width:2.4},
+      itemStyle:{color:m.color,borderColor:C.panel,borderWidth:2},
+      areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:m.color+'44'},{offset:1,color:m.color+'05'}])}}]});
+}
+function renderStack(){
+  const labels=M.filings.map(f=>qCompact(f.quarter));
+  const series=M.cusips.map((cu,ix)=>({name:SEC[cu].ticker,type:'line',stack:'t',
+    areaStyle:{opacity:.85},emphasis:{focus:'series'},smooth:false,symbol:'none',
+    lineStyle:{width:0},itemStyle:{color:SERIES_PALETTE[ix%SERIES_PALETTE.length]},
+    data:M.series[cu].value.map(v=>v==null?0:v)}));
+  draw('stackChart',{grid:{left:10,right:16,top:14,bottom:60,containLabel:true},
+    tooltip:{trigger:'axis',...TIP,formatter:ps=>{const i=ps[0].dataIndex;
+      const items=ps.filter(p=>p.value>0).sort((a,b)=>b.value-a.value).map(p=>`${p.marker}${p.seriesName}: <b>${fUSD(p.value)}</b>`).join('<br/>');
+      return `${M.filings[i].quarter} · ${fUSD(M.filings[i].total)}<br/>${items}`;}},
+    legend:{bottom:0,textStyle:{color:C.muted,fontFamily:'JetBrains Mono',fontSize:11},itemWidth:11,itemHeight:11,type:'scroll'},
+    xAxis:{type:'category',data:labels,boundaryGap:false,...AXBASE},
+    yAxis:{type:'value',...AXBASE,axisLabel:{...AXBASE.axisLabel,formatter:v=>fUSD(v)}},
+    series});
+}
+function initTimeline(){
+  document.querySelectorAll('#tlChips .chip').forEach(c=>c.onclick=()=>{
+    document.querySelectorAll('#tlChips .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');
+    tlMetric=c.dataset.m;renderTimeline();});
+}
+
+/* ============================================================
+   COMPOSITION
+   ============================================================ */
+let compQi=LAST;
+function aggBy(f,key){const m={};f.holdings.forEach(h=>{const k=h[key];m[k]=(m[k]||0)+h.value;});
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]);}
+function barChart(id,pairs,total,colorFn){
+  draw(id,{grid:{left:8,right:46,top:8,bottom:8,containLabel:true},
+    tooltip:{...TIP,trigger:'axis',axisPointer:{type:'shadow'},formatter:ps=>`${ps[0].name}<br/><b>${fUSD(ps[0].value)}</b> · ${(ps[0].value/total*100).toFixed(1)}%`},
+    xAxis:{type:'value',show:false,max:pairs[0][1]},
+    yAxis:{type:'category',data:pairs.map(p=>p[0]).reverse(),axisLine:{show:false},axisTick:{show:false},
+      axisLabel:{color:C.muted,fontFamily:'Inter',fontSize:12}},
+    series:[{type:'bar',data:pairs.map(p=>p[1]).reverse(),barWidth:'56%',
+      itemStyle:{color:p=>colorFn?colorFn(pairs[pairs.length-1-p.dataIndex][0]):C.green,borderRadius:[0,4,4,0]},
+      label:{show:true,position:'right',color:C.faint,fontFamily:'JetBrains Mono',fontSize:11,formatter:p=>((p.value/total*100).toFixed(0)+'%')}}]});
+}
+function renderComposition(){
+  const f=M.filings[compQi];
+  // treemap
+  draw('treeChart',{tooltip:{...TIP,formatter:p=>`${p.name}<br/><b>${fUSD(p.value)}</b> · ${(p.value/f.total*100).toFixed(1)}%`},
+    series:[{type:'treemap',roam:false,nodeClick:false,breadcrumb:{show:false},
+      itemStyle:{borderColor:C.panel,borderWidth:2,gapWidth:2},
+      label:{show:true,formatter:p=>`{t|${p.name}}\n{v|${fUSD(p.value)}}`,
+        rich:{t:{color:'#08120A',fontSize:14,fontWeight:700,fontFamily:'Inter'},v:{color:'rgba(8,18,10,.8)',fontSize:11,fontFamily:'JetBrains Mono',padding:[3,0,0,0]}}},
+      data:f.holdings.map((h,ix)=>({name:h.ticker,value:h.value,itemStyle:{color:SECTOR_COLORS[h.sector]||SERIES_PALETTE[ix]}}))}]});
+  // pie weight
+  draw('pieChart',{tooltip:{...TIP,formatter:p=>`${p.name}<br/>${fUSD(p.value)} · ${p.percent}%`},
+    legend:{type:'scroll',orient:'vertical',right:0,top:'center',textStyle:{color:C.muted,fontFamily:'JetBrains Mono',fontSize:11},itemWidth:11,itemHeight:11},
+    series:[{type:'pie',radius:['40%','72%'],center:['38%','50%'],
+      itemStyle:{borderColor:C.panel,borderWidth:2},
+      label:{show:false},
+      data:f.holdings.map((h,ix)=>({name:h.ticker,value:h.value,itemStyle:{color:SECTOR_COLORS[h.sector]||SERIES_PALETTE[ix]}}))}]});
+  barChart('secChart',aggBy(f,'sector'),f.total,s=>SECTOR_COLORS[s]||C.green);
+  barChart('ctryChart',aggBy(f,'country'),f.total,()=>C.blue);
+  barChart('indChart',aggBy(f,'industry'),f.total,()=>C.cyan);
+}
+function initComposition(){
+  const qs=document.getElementById('cQuarter');
+  qs.innerHTML=M.filings.map((f,i)=>`<option value="${i}" ${i===LAST?'selected':''}>${f.quarter}</option>`).reverse().join('');
+  qs.onchange=()=>{compQi=+qs.value;renderComposition();};
+}
+
+/* ============================================================
+   COMPARE
+   ============================================================ */
+let cmpAi=1,cmpBi=LAST;
+function renderCompare(){
+  if(cmpAi===cmpBi)cmpAi=Math.max(0,cmpBi-1);
+  const A=M.filings[cmpAi],B=M.filings[cmpBi];
+  const cusips=[...new Set([...A.holdings,...B.holdings].map(h=>h.cusip))];
+  const rows=cusips.map(cu=>{const a=A.byCusip[cu],b=B.byCusip[cu];
+    return {cu,ticker:SEC[cu].ticker,name:SEC[cu].name,
+      av:a?a.value:0,bv:b?b.value:0,as:a?a.shares:0,bs:b?b.shares:0,
+      aw:a?a.weight:0,bw:b?b.weight:0,ar:a?a.rank:null,br:b?b.rank:null,
+      dv:(b?b.value:0)-(a?a.value:0)};});
+  const news=rows.filter(r=>!r.av&&r.bv), exits=rows.filter(r=>r.av&&!r.bv);
+  const vc=B.total-A.total;
+  document.getElementById('cmpKpis').innerHTML=[
+    {c:'',k:'Value Δ',v:fUSD(vc),s:`<span class="${sgn(vc)}">${A.total?fPct(vc/A.total*100):''}</span> · ${fUSD(A.total)}→${fUSD(B.total)}`},
+    {c:'alt',k:'Holdings Δ',v:(B.holdings.length-A.holdings.length>=0?'+':'')+(B.holdings.length-A.holdings.length),s:`${A.holdings.length}→${B.holdings.length}`},
+    {c:'',k:'New Positions',v:news.length,s:news.map(r=>r.ticker).join(', ')||'none'},
+    {c:'rose',k:'Exited Positions',v:exits.length,s:exits.map(r=>r.ticker).join(', ')||'none'},
+  ].map(c=>`<div class="kpi ${c.c}"><div class="k">${c.k}</div><div class="v">${c.v}</div><div class="s">${c.s}</div></div>`).join('');
+  // movers chart
+  const mv=rows.filter(r=>r.dv!==0).sort((a,b)=>a.dv-b.dv);
+  draw('moverChart',{grid:{left:8,right:60,top:10,bottom:24,containLabel:true},
+    tooltip:{...TIP,trigger:'axis',axisPointer:{type:'shadow'},formatter:ps=>{const r=mv[ps[0].dataIndex];
+      return `${r.ticker}<br/><b class="">${fUSD(r.dv)}</b><br/>${fUSD(r.av)} → ${fUSD(r.bv)}`;}},
+    xAxis:{type:'value',...AXBASE,axisLabel:{...AXBASE.axisLabel,formatter:v=>fUSD(v)}},
+    yAxis:{type:'category',data:mv.map(r=>r.ticker),axisLine:{show:false},axisTick:{show:false},axisLabel:{color:C.muted,fontFamily:'JetBrains Mono',fontSize:11}},
+    series:[{type:'bar',data:mv.map(r=>r.dv),barWidth:'62%',
+      itemStyle:{color:p=>mv[p.dataIndex].dv>=0?C.pos:C.neg,borderRadius:3},
+      label:{show:true,position:'right',color:C.faint,fontFamily:'JetBrains Mono',fontSize:10,formatter:p=>fUSD(mv[p.dataIndex].dv)}}]});
+  // lists: rank changes + new/exit
+  const ranked=rows.filter(r=>r.ar&&r.br&&r.ar!==r.br).sort((a,b)=>(a.br-a.ar)-(b.br-b.ar)===0?0:(b.ar-b.br)-(a.ar-a.br));
+  let html=`<div class="eyebrow" style="margin-bottom:8px">Ranking Changes</div>`;
+  html+= ranked.length?ranked.map(r=>{const d=r.ar-r.br;
+    return `<div class="moverrow"><span><span class="tk-badge">${r.ticker}</span> <span class="muted">#${r.ar} → #${r.br}</span></span><span class="${d>0?'pos':'neg'}">${d>0?'▲':'▼'} ${Math.abs(d)}</span></div>`;}).join(''):'<div class="muted" style="padding:6px 0">No ranking changes.</div>';
+  html+=`<div class="eyebrow" style="margin:16px 0 8px">New in ${B.quarter}</div>`;
+  html+= news.length?news.map(r=>`<div class="moverrow"><span><span class="tk-badge">${r.ticker}</span> <span class="coname">${r.name}</span></span><span class="pos">${fUSD(r.bv)}</span></div>`).join(''):'<div class="muted" style="padding:6px 0">None.</div>';
+  html+=`<div class="eyebrow" style="margin:16px 0 8px">Exited since ${A.quarter}</div>`;
+  html+= exits.length?exits.map(r=>`<div class="moverrow"><span><span class="tk-badge">${r.ticker}</span> <span class="coname">${r.name}</span></span><span class="amber">${fUSD(r.av)} → $0</span></div>`).join(''):'<div class="muted" style="padding:6px 0">None.</div>';
+  document.getElementById('cmpLists').innerHTML=html;
+}
+function initCompare(){
+  const a=document.getElementById('cmpA'),b=document.getElementById('cmpB');
+  const opts=M.filings.map((f,i)=>`<option value="${i}">${f.quarter}</option>`).join('');
+  a.innerHTML=opts;b.innerHTML=opts;a.value=cmpAi;b.value=cmpBi;
+  a.onchange=()=>{cmpAi=+a.value;renderCompare();};b.onchange=()=>{cmpBi=+b.value;renderCompare();};
+}
+
+/* ============================================================
+   HOLDING DRAWER
+   ============================================================ */
+function openDrawer(cu){
+  const s=M.series[cu],lt=s.lifetime,meta=SEC[cu];
+  document.getElementById('dEyebrow').textContent=`${meta.sector} · ${meta.industry} · ${meta.country}`;
+  document.getElementById('dTicker').textContent=meta.ticker;
+  document.getElementById('dName').textContent=meta.name;
+  document.getElementById('dSub').innerHTML=`CUSIP ${cu} · held ${lt.duration} quarter${lt.duration>1?'s':''} · ${lt.firstQ} → ${lt.lastQ} ${lt.held?'<span class="pos">(current)</span>':'<span class="amber">(exited)</span>'}`;
+  const stats=[
+    {k:'Current Value',v:lt.held?fUSD(lt.currentValue):'Exited'},
+    {k:'Current Weight',v:lt.held?fW(lt.currentWeight):'—'},
+    {k:'Current Shares',v:lt.held?fN(lt.currentShares):'0'},
+    {k:'First Bought',v:lt.firstQ,sm:1},
+    {k:'Peak Value',v:fUSD(lt.maxValue)},
+    {k:'Peak Shares',v:fN(lt.maxShares)},
+    {k:'Lifetime Sh Δ',v:(lt.shareDelta>=0?'+':'')+fN(lt.shareDelta),cls:sgn(lt.shareDelta)},
+    {k:'Lifetime Val Δ',v:fUSD(lt.valueDelta),cls:sgn(lt.valueDelta)},
+  ];
+  document.getElementById('dStats').innerHTML=stats.map(c=>`<div class="c"><div class="k">${c.k}</div><div class="v ${c.sm?'sm':''} ${c.cls||''}">${c.v}</div></div>`).join('');
+  document.getElementById('drawerBg').classList.add('on');
+  document.getElementById('drawer').classList.add('on');
+  const labels=M.filings.map(f=>qCompact(f.quarter));
+  // chart1: shares (bar) + value (line)
+  draw('dChart1',{grid:{left:8,right:8,top:24,bottom:24,containLabel:true},
+    tooltip:{trigger:'axis',...TIP,formatter:ps=>{const i=ps[0].dataIndex;
+      const sh=s.shares[i],vv=s.value[i];return `${M.filings[i].quarter}<br/>Value: <b>${vv==null?'—':fUSDfull(vv)}</b><br/>Shares: <b>${sh==null?'—':fN(sh)}</b>`;}},
+    legend:{top:0,right:0,textStyle:{color:C.muted,fontFamily:'JetBrains Mono',fontSize:11},itemWidth:11,itemHeight:11},
+    xAxis:{type:'category',data:labels,...AXBASE},
+    yAxis:[{type:'value',...AXBASE,axisLabel:{...AXBASE.axisLabel,formatter:v=>fUSD(v)}},
+      {type:'value',...AXBASE,splitLine:{show:false},axisLabel:{...AXBASE.axisLabel,formatter:v=>v>=1e6?(v/1e6).toFixed(0)+'M':fN(v)}}],
+    series:[
+      {name:'Value',type:'bar',data:s.value,yAxisIndex:0,barWidth:'46%',itemStyle:{color:'rgba(118,185,0,.5)',borderRadius:[3,3,0,0]}},
+      {name:'Shares',type:'line',data:s.shares,yAxisIndex:1,smooth:.25,connectNulls:true,symbol:'circle',symbolSize:6,lineStyle:{color:C.blue,width:2},itemStyle:{color:C.blue}}]});
+  // chart2: weight
+  draw('dChart2',{grid:{left:8,right:8,top:12,bottom:24,containLabel:true},
+    tooltip:{trigger:'axis',...TIP,formatter:ps=>{const i=ps[0].dataIndex;return `${M.filings[i].quarter}<br/>Weight: <b>${s.weight[i]==null?'—':fW(s.weight[i])}</b> · rank ${s.rank[i]||'—'}`;}},
+    xAxis:{type:'category',data:labels,...AXBASE},
+    yAxis:{type:'value',...AXBASE,axisLabel:{...AXBASE.axisLabel,formatter:v=>v+'%'}},
+    series:[{type:'line',data:s.weight,smooth:.25,connectNulls:true,symbol:'circle',symbolSize:6,lineStyle:{color:C.purple,width:2},itemStyle:{color:C.purple},
+      areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(163,113,247,.34)'},{offset:1,color:'rgba(163,113,247,.03)'}])}}]});
+  // qoq table
+  const th=document.querySelector('#dTable thead');
+  th.innerHTML='<tr><th class="l">Quarter</th><th>Shares</th><th>Δ Sh</th><th>Value</th><th>Weight</th><th class="l">Status</th></tr>';
+  const tb=document.querySelector('#dTable tbody');
+  let rows='';
+  for(let i=M.filings.length-1;i>=0;i--){const h=M.filings[i].byCusip[cu];const prev=i>0?M.filings[i-1].byCusip[cu]:null;
+    if(!h){ if(prev){rows+=`<tr><td class="l mono">${qCompact(M.filings[i].quarter)}</td><td colspan="4" class="faint">— not held —</td><td class="l">${statusBadge('exit')}</td></tr>`;} continue;}
+    const dsh=prev?h.shares-prev.shares:null;
+    rows+=`<tr><td class="l mono">${qCompact(M.filings[i].quarter)}</td><td>${fN(h.shares)}</td>
+      <td class="${sgn(dsh)}">${dsh==null?'NEW':(dsh>0?'+':'')+fN(dsh)}</td>
+      <td>${fUSDfull(h.value)}</td><td>${fW(h.weight)}</td><td class="l">${statusBadge(h.status)}</td></tr>`;}
+  tb.innerHTML=rows;
+}
+function closeDrawer(){document.getElementById('drawerBg').classList.remove('on');document.getElementById('drawer').classList.remove('on');}
+document.getElementById('dClose').onclick=closeDrawer;
+document.getElementById('drawerBg').onclick=closeDrawer;
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});
+
+/* ============================================================
+   TAB ROUTING
+   ============================================================ */
+const RENDERED={overview:false};
+function activate(v){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.v===v));
+  document.querySelectorAll('.view').forEach(s=>s.classList.toggle('active',s.id==='v-'+v));
+  if(v==='timeline'){renderTimeline();renderStack();}
+  if(v==='composition')renderComposition();
+  if(v==='compare')renderCompare();
+  if(v==='changelog'&&!RENDERED.changelog){renderChangelog();RENDERED.changelog=true;}
+  // resize any charts in the now-visible view
+  setTimeout(()=>Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}}),40);
+}
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>activate(t.dataset.v));
+window.addEventListener('resize',()=>Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}}));
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+initOverview();
+initHoldings();
+initTimeline();
+initComposition();
+initCompare();
+
+</script>
+</body>
+</html>
