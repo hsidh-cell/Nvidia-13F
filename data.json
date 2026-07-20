@@ -2,7 +2,7 @@
   "meta": {
     "manager": "NVIDIA CORP",
     "cik": "0001045810",
-    "generated": "2026-07-19",
+    "generated": "2026-07-20",
     "source": "SEC EDGAR Form 13F-HR filings (information tables), fetched & parsed by sec_ingest.py",
     "valueUnits": "US dollars (whole)",
     "note": "All quarters parsed directly from EDGAR and validated against each filing's summary page."
