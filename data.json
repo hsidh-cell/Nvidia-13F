@@ -2,7 +2,7 @@
   "meta": {
     "manager": "NVIDIA CORP",
     "cik": "0001045810",
-    "generated": "2026-08-14",
+    "generated": "2026-08-15",
     "source": "SEC EDGAR Form 13F-HR filings (information tables), fetched & parsed by sec_ingest.py",
     "valueUnits": "US dollars (whole)",
     "note": "All quarters parsed directly from EDGAR and validated against each filing's summary page."
@@ -77,6 +77,13 @@
       "sector": "Software",
       "industry": "Voice / Conversational AI",
       "country": "United States"
+    },
+    "84615Q103": {
+      "ticker": "SPACE",
+      "name": "Space Exploration Techn Corp",
+      "sector": "Unknown",
+      "industry": "Unclassified",
+      "country": "Unknown"
     },
     "871607107": {
       "ticker": "SNPS",
@@ -605,6 +612,73 @@
           "cusip": "871607107",
           "class": "COM",
           "value": 1911714356,
+          "shares": 4821717,
+          "discretion": "SOLE"
+        }
+      ]
+    },
+    {
+      "period": "2026-06-30",
+      "quarter": "Q2 2026",
+      "filed": "2026-08-14",
+      "accession": "0001045810-26-000065",
+      "formType": "13F-HR",
+      "verified": true,
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000065/0001045810-26-000065-index.html",
+      "holdings": [
+        {
+          "cusip": "19247G107",
+          "class": "COM",
+          "value": 3072195870,
+          "shares": 7788161,
+          "discretion": "SOLE"
+        },
+        {
+          "cusip": "21873S108",
+          "class": "COM CL A",
+          "value": 4699617158,
+          "shares": 47213353,
+          "discretion": "SOLE"
+        },
+        {
+          "cusip": "370920100",
+          "class": "COM SHS",
+          "value": 14058193,
+          "shares": 833325,
+          "discretion": "SOLE"
+        },
+        {
+          "cusip": "458140100",
+          "class": "COM",
+          "value": 29989261126,
+          "shares": 214776632,
+          "discretion": "SOLE"
+        },
+        {
+          "cusip": "N97284108",
+          "class": "SHS CLASS A",
+          "value": 328773757,
+          "shares": 1190476,
+          "discretion": "SOLE"
+        },
+        {
+          "cusip": "654902204",
+          "class": "SPONSORED ADR",
+          "value": 2209650581,
+          "shares": 166389351,
+          "discretion": "SOLE"
+        },
+        {
+          "cusip": "84615Q103",
+          "class": "CLASS A COM STK",
+          "value": 20975594582,
+          "shares": 122764805,
+          "discretion": "SOLE"
+        },
+        {
+          "cusip": "871607107",
+          "class": "COM",
+          "value": 2150823302,
           "shares": 4821717,
           "discretion": "SOLE"
         }
