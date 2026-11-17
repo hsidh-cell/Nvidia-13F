@@ -2,7 +2,7 @@
   "meta": {
     "manager": "NVIDIA CORP",
     "cik": "0001045810",
-    "generated": "2026-11-16",
+    "generated": "2026-11-17",
     "source": "SEC EDGAR Form 13F-HR filings (information tables), fetched & parsed by sec_ingest.py",
     "valueUnits": "US dollars (whole)",
     "note": "All quarters parsed directly from EDGAR and validated against each filing's summary page."
@@ -680,6 +680,73 @@
           "class": "COM",
           "value": 2150823302,
           "shares": 4821717,
+          "discretion": "SOLE"
+        }
+      ]
+    },
+    {
+      "period": "2026-09-30",
+      "quarter": "Q3 2026",
+      "filed": "2026-11-16",
+      "accession": "0001045810-26-000084",
+      "formType": "13F-HR",
+      "verified": true,
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000084/0001045810-26-000084-index.html",
+      "holdings": [
+        {
+          "cusip": "19247G107",
+          "class": "COM",
+          "value": 2241510617,
+          "shares": 7788161,
+          "discretion": "SOLE"
+        },
+        {
+          "cusip": "21873S108",
+          "class": "COM CL A",
+          "value": 4113227313,
+          "shares": 47213353,
+          "discretion": "SOLE"
+        },
+        {
+          "cusip": "370920100",
+          "class": "COM SHS",
+          "value": 12516542,
+          "shares": 833325,
+          "discretion": "SOLE"
+        },
+        {
+          "cusip": "458140100",
+          "class": "COM",
+          "value": 19366947532,
+          "shares": 161082488,
+          "discretion": "SOLE"
+        },
+        {
+          "cusip": "N97284108",
+          "class": "SHS CLASS A",
+          "value": 280809479,
+          "shares": 1190476,
+          "discretion": "SOLE"
+        },
+        {
+          "cusip": "654902204",
+          "class": "SPONSORED ADR",
+          "value": 738797875,
+          "shares": 72859751,
+          "discretion": "SOLE"
+        },
+        {
+          "cusip": "84615Q103",
+          "class": "CLASS A COM STK",
+          "value": 19683145466,
+          "shares": 130472925,
+          "discretion": "SOLE"
+        },
+        {
+          "cusip": "871607107",
+          "class": "COM",
+          "value": 1893762250,
+          "shares": 4354077,
           "discretion": "SOLE"
         }
       ]
